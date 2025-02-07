@@ -5,8 +5,11 @@ import mysql.connector
 from datetime import datetime
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
-socketio = SocketIO(app, cors_allowed_origins="*")  # Enable WebSocket support
+# Allow CORS for both frontend origins
+CORS(app, resources={r"/*": {"origins": ["https://vendo-4c52f.web.app", "https://vendodispenser.vercel.app"]}})
+
+# Allow WebSocket CORS for both origins
+socketio = SocketIO(app, cors_allowed_origins=["https://vendo-4c52f.web.app", "https://vendodispenser.vercel.app"])
 
 # Database connection configuration
 db_config = {
@@ -42,6 +45,7 @@ create_table()
 
 
 # API endpoint to insert waste and prize into the table
+# API endpoint to insert waste and prize into the table
 @app.route('/add_waste_prize', methods=['POST'])
 def add_waste_prize():
     try:
@@ -62,8 +66,6 @@ def add_waste_prize():
         ''', (waste, prize, status, time_date))
         conn.commit()
         record_id = cursor.lastrowid
-        cursor.close()
-        conn.close()
 
         # Emit real-time event via WebSocket
         socketio.emit('new_waste_prize', {'id': record_id, 'Waste': waste, 'Prize': prize, 'Status': status})
@@ -71,6 +73,11 @@ def add_waste_prize():
         return jsonify({'message': 'Record added successfully', 'id': record_id}), 201
     except mysql.connector.Error as err:
         return jsonify({'error': str(err)}), 500
+    finally:
+        if 'cursor' in locals():
+            cursor.close()
+        if 'conn' in locals():
+            conn.close()
 
 
 #api endpoint for updating sensor response
